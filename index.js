@@ -139,10 +139,12 @@ app.post('/logar', (req, res) => {
                     req.session.email = user.email;
                     res.redirect('/');
                 } else {
-                    res.send("Senha incorreta");
+
+                    res.render('login', { errorMessage: "Senha incorreta" });
                 }
             } else {
-                res.send("Usuário não encontrado");
+
+                res.render('login', { errorMessage: "Usuário não encontrado" });
             }
         }).catch(error => {
             console.error(error);
@@ -155,22 +157,29 @@ app.post('/cadastrar', (req, res) => {
     const { usuario, email, senha, confirmSenha } = req.body;
 
     if (senha !== confirmSenha) {
-        res.status(400).send('As senhas não coincidem!');
+        return res.render('cadastro', { erro: 'As senhas não coincidem!' });
     }
 
     User.findOne({ where: { usuario } }).then(usuarioExiste => {
         if (usuarioExiste) {
-            res.status(400).send('Usuário já existe!');
+            return res.render('cadastro', { erro: 'Usuário já existe!' }); 
         }
 
-        User.create({ usuario, email, senha });
-    }).then(() => {
-        res.redirect('login');
+        User.create({ usuario, email, senha })
+            .then(() => {
+                res.redirect('/login');
+            })
+            .catch(error => {
+                console.error("Erro ao cadastrar usuário:", error);
+                res.status(500).send('Erro ao cadastrar usuário.');
+            });
     }).catch(error => {
-        console.error("Erro ao cadastrar usuário:", error);
-        res.status(500).send('Erro ao cadastrar usuário.');
+        console.error("Erro ao verificar existência do usuário:", error);
+        res.status(500).send('Erro ao verificar existência do usuário.');
     });
 });
+
+
 
 
 app.get('/perfil', (req, res) => {

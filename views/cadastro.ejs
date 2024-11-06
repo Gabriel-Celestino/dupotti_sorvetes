@@ -21,6 +21,12 @@
                 <div class="card-cadastro">
                     <h2>Dupotti Sorvetes</h2>
 
+                    <% if (typeof erro !== 'undefined') { %>
+                        <div class="alert alert-danger">
+                            <%= erro %>
+                        </div>
+                    <% } %>
+
                     <form action="/cadastrar" method="post" id="registerForm">
                         <div class="form-group">
                             <label for="username">Nome de Usuário</label>
