@@ -3,6 +3,12 @@ const app = express();
 const sessao = require("express-session");
 const multer = require('multer');
 const path = require('path');
+const bodyParser = require('body-parser');
+const { Op } = require('sequelize');
+const connection = require('./database/database');
+const User = require('./database/usuario');
+const Produto = require('./database/produto');
+const TipoProduto = require('./database/tipoProduto');
 
 app.use(sessao({
     secret: 'segredo',
@@ -10,14 +16,6 @@ app.use(sessao({
     saveUninitialized: false,
     cookie: { maxAge: 3600000 }
 }));
-
-const bodyParser = require('body-parser');
-
-const connection = require('./database/database');
-
-const User = require('./database/usuario');
-const Produto = require('./database/produto');
-const TipoProduto = require('./database/tipoProduto');
 
 connection.authenticate().then(() => {
     console.log("Conectado ao banco de dados");
@@ -28,8 +26,10 @@ connection.authenticate().then(() => {
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
+
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
+
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -39,21 +39,19 @@ const storage = multer.diskStorage({
         cb(null, Date.now() + path.extname(file.originalname));
     }
 });
-
 const upload = multer({ storage: storage });
+
 
 app.get('/produtos', (req, res) => {
     Produto.findAll().then((produtos) => {
-        console.log("Produtos encontrados:", produtos);
-
         return TipoProduto.findAll().then((tipoProdutos) => {
-            console.log("Tipos de produtos encontrados:", tipoProdutos);
             const usuario = req.session.usuario;
-            res.render('produtos', { produtos, tipoProdutos, usuario });
+            const email = req.session.email; 
+            res.render('produtos', { produtos, tipoProdutos, usuario, email });
         });
     }).catch((error) => {
         console.error('Erro ao buscar produtos ou tipos:', error);
-        res.redirect('/'); // Redireciona em caso de erro
+        res.redirect('/');
     });
 });
 
@@ -68,15 +66,14 @@ const tipoProdutos = [
 
 app.post('/cadastrarTipo', (req, res) => {
     const tipo = req.body.nome;
-
     TipoProduto.create({ nome: tipo }).then(() => {
         res.redirect('/cadastroProdutos');
-    })
+    });
 });
 
 app.post('/cadastrarProduto', upload.single('imagem'), (req, res) => {
     const { tipo, sabor, estoque, descricao, preco } = req.body;
-    const imagem = req.file ? req.file. filename : null;
+    const imagem = req.file ? req.file.filename : null;
 
     Produto.findOne({ where: { tipo, sabor } }).then((produtoExiste) => {
         if (produtoExiste) {
@@ -91,8 +88,6 @@ app.post('/cadastrarProduto', upload.single('imagem'), (req, res) => {
         console.error(error);
     });
 });
-
-const { Op } = require('sequelize');
 
 app.get('/buscarProdutos', (req, res) => {
     const termo = req.query.termo || '';
@@ -122,7 +117,8 @@ app.get('/buscarProdutos', (req, res) => {
     .then(produtos => {
         return TipoProduto.findAll().then(tipoProdutos => {
             const usuario = req.session.usuario;
-            res.render('produtos', { produtos, tipoProdutos, usuario });
+            const email = req.session.email; 
+            res.render('produtos', { produtos, tipoProdutos, usuario, email });
         });
     })
     .catch(error => {
@@ -130,7 +126,6 @@ app.get('/buscarProdutos', (req, res) => {
         res.redirect('/produtos');
     });
 });
-
 
 
 app.post('/logar', (req, res) => {
@@ -141,6 +136,7 @@ app.post('/logar', (req, res) => {
             if (user) {
                 if (user.senha === senha) {
                     req.session.usuario = user.usuario;
+                    req.session.email = user.email;
                     res.redirect('/');
                 } else {
                     res.send("Senha incorreta");
@@ -153,6 +149,7 @@ app.post('/logar', (req, res) => {
             res.status(500).send('Erro no servidor');
         });
 });
+
 
 app.post('/cadastrar', (req, res) => {
     const { usuario, email, senha, confirmSenha } = req.body;
@@ -173,6 +170,13 @@ app.post('/cadastrar', (req, res) => {
         console.error("Erro ao cadastrar usuário:", error);
         res.status(500).send('Erro ao cadastrar usuário.');
     });
+});
+
+
+app.get('/perfil', (req, res) => {
+    const usuario = req.session.usuario;
+    const email = req.session.email; 
+    res.render('perfil', { usuario, email });
 });
 
 app.get('/cadastrotipo', (req, res) => {
@@ -200,13 +204,15 @@ app.get("/servicos", (req, res) => {
 
 app.get("/", (req, res) => {
     const usuario = req.session.usuario;
-    res.render('index', { usuario: usuario });
+    const email = req.session.email; 
+    res.render('index', { usuario: usuario, email: email });
 });
+
 
 app.listen(8181, function (erro) {
     if (erro) {
-        console.log("Erro");
+        console.log("Erro ao iniciar o servidor");
     } else {
-        console.log("Servidor iniciado!");
+        console.log("Servidor iniciado na porta 8181!");
     }
 });
